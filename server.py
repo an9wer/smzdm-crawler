@@ -103,5 +103,5 @@ class Server:
 if __name__ == "__main__":
     #server("127.0.0.1", 8080)
     from handler import Handler
-    s = Server("127.0.01", 8080, Handler)
+    s = Server("127.0.0.1", 8080, Handler)
     s.server_forever()

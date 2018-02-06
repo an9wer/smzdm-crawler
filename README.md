@@ -8,4 +8,6 @@
 
 -   socket error
 
+-   sched
+
 -   concurrent.future

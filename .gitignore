@@ -4,3 +4,6 @@ venv
 # byte code file
 *.pyc
 __pychache__
+
+# config file
+*.json

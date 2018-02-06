@@ -35,8 +35,11 @@ class Client:
 
     def _prepare(self):
         # TODO
-        data = pickle.dumps([1, 2, 3])
-        return data
+        data = {
+            "interveal": int(input("interveal: ")) or 30,
+            "search": input("search: "),
+        }
+        return pickle.dumps(data)
 
     def request(self):
         data = self._prepare()

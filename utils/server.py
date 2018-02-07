@@ -1,5 +1,6 @@
 import pickle
 import socket
+import threading
 
 from utils.handler import Handler
 from utils.config import ServerConfig
@@ -20,7 +21,7 @@ class Server:
         self.port = CONFIG["port"]
         self.server_address = (self.addr, self.port)
         self.handler = Handler
-
+        self.handlers = []
 
         self.sock = socket.socket(self.address_family, self.socket_type)
 
@@ -55,33 +56,45 @@ class Server:
         finally:
             self.close()
 
+    def handle_error(self, connection, error):
+        err_msg = "some error happens: {!r}".format(error)
+        connection.sendall(err_msg)
+
+
     def handle_connection(self):
         connection, client_address = self.accept()
-        connection.shutdown(socket.SHUT_WR)     # close wirte
+        #connection.shutdown(socket.SHUT_WR)     # close wirte
 
         if self.verify_connection(client_address):
             try:
                 self._handle_connection(connection)
-            except Exception:
-                raise
-                # TODO: handle error (log)
-                # self.handle_error(connection)
-                self.close_connection(connection)
+            except Exception as e:
+                self.handle_error(connection)
             except:
-                self.close_connection(connection)
+                self.handle_error(connection)
                 raise
+            else:
+                connection.sendall(b"action now!")
+            finally:
+                self.close_connection(connection)
         else:
             self.close_connection(connection)
 
     def _handle_connection(self, connection):
+        # cancel existed job
+        for handler in self.handlers:
+            handler.state = "cancel"
+        self.handlers.clear()
+        # create a new job
         con_file = connection.makefile("rb")
         data = pickle.load(con_file)
         print("receive {!r}".format(data))
         search = data.get("search")
-        interveal = data.get("interveal", 3600)
-        assert search
-        self.handler(search, interveal)()
-        #self.schedule.enter(interveal, 1, self.handler, argument=(search,))
+        interval = data.get("interval")
+        handler = self.handler(search, interval)
+        thread = threading.Thread(target=handler)
+        thread.start()
+        self.handlers.append(handler)
 
     def verify_connection(self, address):
         return True

@@ -2,5 +2,5 @@
     "host": "127.0.0.1",
     "port": 8080,
     "search": "nike",
-    "interveal": 1800
+    "interval": 1800
 }

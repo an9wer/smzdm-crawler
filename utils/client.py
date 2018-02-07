@@ -1,11 +1,12 @@
 import pickle
 import socket
 
+from functools import partial
 from utils.config import ClientConfig
 
 
 CONFIG = ClientConfig()
-assert isinstance(CONFIG["interveal"], int)
+assert isinstance(CONFIG["interval"], int)
 
 
 class Client:
@@ -24,7 +25,7 @@ class Client:
 
     def connect(self):
         self.sock.connect(self.server_address)
-        self.sock.shutdown(socket.SHUT_RD)   # close read
+        #self.sock.shutdown(socket.SHUT_RD)   # close read
 
     def close(self):
         self.sock.close()
@@ -32,13 +33,27 @@ class Client:
     def _prepare(self):
         data = {
             "search": CONFIG["search"],
-            "interveal": CONFIG["interveal"],
+            "interval": CONFIG["interval"],
         }
         return pickle.dumps(data)
+
+    def recv_all(self):
+        """
+        data = b""
+        while True:
+            msg = self.sock.recv(1024)
+            if msg == b"":
+                break
+            data += msg
+        return data
+        """
+        return b"".join(iter(partial(self.sock.recv, 1024), b""))
 
     def request(self):
         data = self._prepare()
         self.sock.sendall(data)
+        msg = self.recv_all()
+        print(msg)
 
     def __call__(self):
         try: self.request()

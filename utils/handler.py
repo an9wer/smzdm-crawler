@@ -140,9 +140,10 @@ class EmailTemplate:
 
 class Handler:
 
-    def __init__(self, search, interveal):
+    def __init__(self, search, interval):
+        self.state = ""
         self.search = search
-        self.interveal = interveal
+        self.interval = interval
         self.scheduler = scheduler()
         self.server = smtplib.SMTP_SSL(CONFIG["server_addr"],
                                        CONFIG["server_port"])
@@ -159,14 +160,16 @@ class Handler:
     def send_email(self):
         self.server.connect(CONFIG["server_addr"], CONFIG["server_port"])
         self.server.login(CONFIG["sender"], CONFIG["server_passwd"])
-        self.server.set_debuglevel(1)
+        # self.server.set_debuglevel(1)     # for debug
         self.server.send_message(self._get_message())
         self.server.quit()
 
     def callback(self):
-        self.scheduler.enter(self.interveal, 1, self)
+        self.scheduler.enter(self.interval, 1, self)
         self.scheduler.run()
 
     def __call__(self):
+        if self.state == "cancel":
+            return 
         self.send_email()
         self.callback()

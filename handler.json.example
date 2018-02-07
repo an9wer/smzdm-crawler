@@ -1,0 +1,8 @@
+{
+    "server_addr": "example.com",
+    "server_port": 465,
+    "server_passwd": "password",
+    "subject": "to buy what",
+    "sender": "an9wer@example.com",
+    "receivers": ["someone@example.com", "sometwo@example.com"]
+}

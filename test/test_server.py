@@ -1,6 +1,10 @@
 from utils.server import Server
 
 
-if __name__ == "__main__":
+def test_server():
     s = Server()
     s.server_forever()
+
+
+if __name__ == "__main__":
+    test_server()

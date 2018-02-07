@@ -7,3 +7,6 @@ __pychache__
 
 # config file
 *.json
+
+# vim recovery file
+*.swp

@@ -10,18 +10,27 @@ from email.message import EmailMessage
 from email.mime.text import MIMEText
 from email.utils import make_msgid
 
-from config import HandlerConfig
+from sched import scheduler
+
+from utils.config import HandlerConfig
 
 
 _session = requests.session()
-_config = HandlerConfig()
 
-_headers = {
+CONFIG = HandlerConfig()
+
+TARGET = {
+    "url": "https://search.smzdm.com/?c=home&s={}",
+    "channels": ["国内优惠", "海淘优惠", "发现优惠", "好价频道"],
+}
+
+HEADERS = {
     # "referer": "https://www.smzdm.com/",
     "user-agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) "
                   "AppleWebKit/537.36 (KHTML, like Gecko) "
                   "Chrome/63.0.3239.132 Safari/537.36",
 }
+
 
 class error_handler:
 
@@ -30,11 +39,10 @@ class error_handler:
 
     def __get__(self, ins, cls):
         def wrapper(*args, **kwargs):
-            #print(222)
             try: return self.func(ins, *args, **kwargs)
-            except Exception: print(111)
+            # TODO: log
+            except Exception: pass
         return wrapper
-
 
 
 class EmailTemplate:
@@ -49,9 +57,9 @@ class EmailTemplate:
         self.soup = BeautifulSoup(html, "html.parser")
 
         self.message = EmailMessage()
-        self.message["From"] = _config["email.sender"]
-        self.message["To"] = ",".join(_config["email.receivers"])
-        self.message["Subject"] = _config["email.subject"]
+        self.message["From"] = CONFIG["sender"]
+        self.message["To"] = ",".join(CONFIG["receivers"])
+        self.message["Subject"] = CONFIG["subject"]
 
     def lis(self):
         for li in self.soup.select("ul[id=feed-main-list] li"):
@@ -71,10 +79,7 @@ class EmailTemplate:
     @staticmethod
     def data(li):
         # 商品在购物平台中的地址
-        #a = li.select_one("div[class=feed-link-btn-inner] a")
-        #data = re.findall(r"push\((.*?)\)", a["onclick"])[1]
         go_buy = li.select_one("div[class=feed-link-btn-inner] a")
-        #print(go_buy["onclick"])
         data = re.findall(r"push\((.*?)\)", go_buy["onclick"])[1]
         return json.loads(data.replace("'", '"'))
 
@@ -98,7 +103,7 @@ class EmailTemplate:
             # TODO: gift
             img_src = ""
 
-        return _session.get(img_src, headers=_headers).content
+        return _session.get(img_src, headers=HEADERS).content
     
     @staticmethod
     def cid():
@@ -128,21 +133,23 @@ class EmailTemplate:
 
     def generate(self):
         for li in self.lis(): 
-            if self.channel(li) in _config["target.channels"]:
+            if self.channel(li) in TARGET["channels"]:
                 self._generate(li)
         return self.message
 
 
 class Handler:
 
-    def __init__(self):
-        print(_config)
-        self.server = smtplib.SMTP_SSL(_config["email.server_addr"],
-                                       _config["email.server_port"])
+    def __init__(self, search, interveal):
+        self.search = search
+        self.interveal = interveal
+        self.scheduler = scheduler()
+        self.server = smtplib.SMTP_SSL(CONFIG["server_addr"],
+                                       CONFIG["server_port"])
 
-    @staticmethod
-    def _get_html():
-        return _session.get(_config["target.url"], headers=_headers).text
+    def _get_html(self):
+        url = TARGET["url"].format(self.search)
+        return _session.get(url, headers=HEADERS).text
 
     def _get_message(self):
         html = self._get_html()
@@ -150,13 +157,16 @@ class Handler:
         return et.generate()
 
     def send_email(self):
-        self.server.login(_config["email.sender"],
-                          _config["email.server_passwd"])
+        self.server.connect(CONFIG["server_addr"], CONFIG["server_port"])
+        self.server.login(CONFIG["sender"], CONFIG["server_passwd"])
+        self.server.set_debuglevel(1)
         self.server.send_message(self._get_message())
         self.server.quit()
 
+    def callback(self):
+        self.scheduler.enter(self.interveal, 1, self)
+        self.scheduler.run()
 
-if __name__ == "__main__":
-    hd = Handler()
-    hd.send_email()
-    print("Done!")
+    def __call__(self):
+        self.send_email()
+        self.callback()
